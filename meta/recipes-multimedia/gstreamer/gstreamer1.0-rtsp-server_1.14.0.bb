@@ -21,7 +21,7 @@ S = "${WORKDIR}/${PNREAL}-${PV}"
 
 inherit autotools pkgconfig upstream-version-is-even gobject-introspection gtk-doc
 
-EXTRA_OECONF = "--disable-examples --disable-tests"
+EXTRA_OECONF = "--disable-tests"
 
 # Starting with 1.8.0 gst-rtsp-server includes dependency-less plugins as well
 LIBV = "1.0"
@@ -33,3 +33,10 @@ delete_pkg_m4_file() {
 }
 
 do_configure[prefuncs] += " delete_pkg_m4_file"
+
+do_install_append () {
+	install -d ${D}${bindir}
+	for file in ${B}/examples/.libs/*;do
+		install -m 755 "$file" ${D}${bindir}
+	done
+}
