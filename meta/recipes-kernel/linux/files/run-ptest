@@ -1,0 +1,138 @@
+#!/bin/bash
+depmod
+touch kernel.log
+
+#dma-example bytestream-example inttype-example record-example
+list1=("dma-example" "bytestream-example" "inttype-example" "record-example")
+for i in "${list1[@]}"
+do
+  dmesg -c
+  modprobe "$i"
+  result=""
+  IFS="-" read -ra array <<< "$i"
+  len=${#array[@]}
+  if [ $len -eq 2 ];then
+    result="${array[0]}_${array[1]}"
+  elif [ $len -eq 3 ];then
+    result="${array[0]}_${array[1]}_${array[2]}"
+  fi
+  lsmod | grep -q "$result"
+  if [ $? -eq 0 ];then
+    dmesg | grep "test passed"
+    if [ $? -eq 0 ];then
+      echo "$i: PASS" >> kernel.log
+    fi
+    rmmod "$i"
+  else
+    echo "$i: FAILED" >> kernel.log
+  fi
+done
+
+#kobject-example kset-example
+list2=("kobject-example" "kset-example")
+for i in "${list2[@]}"
+do
+  dmesg -c
+  modprobe "$i"
+  result=""
+  IFS="-" read -ra array <<< "$i"
+  len=${#array[@]}
+  if [ $len -eq 2 ];then
+    result="${array[0]}_${array[1]}"
+  elif [ $len -eq 3 ];then
+    result="${array[0]}_${array[1]}_${array[2]}"
+  fi
+  basedir="/sys/kernel/${result}"
+  echo "$basedir"
+  if [ -e ${basedir}/bar -a -e ${basedir}/baz -a -e ${basedir}/foo ];then
+    echo "$i: PASS" >> kernel.log
+    rmmod "$i"
+  else
+    echo "$i: FAILED" >> kernel.log
+  fi
+done
+
+#trace-events-sample
+list3="trace-events-sample"
+result=""
+IFS="-" read -ra array <<< "$list3"
+len=${#array[@]}
+if [ $len -eq 2 ];then
+  result="${array[0]}_${array[1]}"
+elif [ $len -eq 3 ];then
+  result="${array[0]}_${array[1]}_${array[2]}"
+fi
+modprobe "$list3"
+lsmod | grep "$result"
+if [ $? -eq 0 ];then
+  if [ -e "/sys/kernel/debug/tracing/events/sample-trace" ];then
+    echo 1 > /sys/kernel/debug/tracing/events/sample-trace/enable
+    sleep 5
+    ret=`cat /sys/kernel/debug/tracing/trace | grep hello | head -n1 | cut -d':' -f2`
+    if [ "$ret" = " foo_bar" ];then
+      echo "$list3: PASS"  >> kernel.log
+    else
+      echo "$list3: FAILED-" >> kernel.log
+    fi
+  else
+    echo "$list3: FAILED--" >> kernel.log
+  fi
+else
+  echo "$list3: FAILED---" >> kernel.log
+fi
+rmmod "$list3"
+
+#trace-printk
+list4="trace-printk"
+modprobe "$list4"
+lsmod | grep "trace_printk"
+if [ $? -eq 0 ];then
+  ret=`cat /sys/kernel/debug/tracing/trace | grep trace_printk | head -n1 | cut -d':' -f2`
+  if [ "$ret" = " trace_printk_irq_work" ];then
+    echo "$list4: PASS" >> kernel.log
+    rmmod "$list4"
+  else
+    echo "$list4: FAILED" >> kernel.log
+  fi
+else
+  echo "$list4: FAILED" >> kernel.log
+fi
+rmmod "$list4"
+
+#kprobe_example
+list5="kprobe_example"
+dmesg -c
+modprobe "$list5"
+lsmod | grep "$list5"
+if [ $? -eq 0 ];then
+  dmesg | grep "_do_fork"
+  if [ $? -eq 0 ];then
+    echo "$list5: PASS" >> kernel.log
+  else
+    echo "$list5: FAILED" >> kernel.log
+  fi
+else
+  echo "$list5: FAILED" >> kernel.log
+fi
+rmmod "$list5"
+
+#kretprobe_example
+list6="kretprobe_example"
+dmesg -c
+modprobe "$list6"
+lsmod | grep "$list6"
+if [ $? -eq 0 ];then
+  dmesg | grep "_do_fork returned"
+  if [ $? -eq 0 ];then
+    echo "$list6: PASS" >> kernel.log
+  else
+    echo "$list6: FAILED" >> kernel.log
+  fi
+else
+  echo "$list6: FAILED" >> kernel.log
+fi
+rmmod "$list6"
+
+echo "#####result#####"
+cat kernel.log
+rm kernel.log

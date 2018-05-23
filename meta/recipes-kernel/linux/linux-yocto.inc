@@ -67,3 +67,11 @@ do_install_append(){
 addtask kernel_version_sanity_check after do_kernel_metadata do_kernel_checkout before do_compile
 addtask validate_branches before do_patch after do_kernel_checkout
 addtask kernel_configcheck after do_configure before do_compile
+
+inherit ptest
+SRC_URI_append = " file://run-ptest \
+"
+do_install_ptest_append() {
+	install -D ${WORKDIR}/run-ptest ${D}${PTEST_PATH}/run-ptest
+}
+KERNEL_FEATURES_append = " ${@bb.utils.contains("DISTRO_FEATURES", "ptest", "features/kernel-sample/kernel-sample.scc", "", d)}"
