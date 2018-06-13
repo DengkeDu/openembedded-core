@@ -1,0 +1,144 @@
+#!/bin/bash
+depmod
+touch kernel.log
+
+# dma-example: This module shows how to handle fifo dma operations.
+# bytestream-example: This module shows how to create a byte stream fifo.
+# inttype-example: This module shows how to create a int type fifo. 
+# record-example: This module shows how to create a variable sized record fifo.
+list1=("dma-example" "bytestream-example" "inttype-example" "record-example")
+for i in "${list1[@]}"
+do
+  dmesg -c
+  modprobe "$i"
+  mod=${i//-/_}
+  lsmod | grep -q "$mod"
+  if [ $? -eq 0 ];then
+    dmesg | grep "test passed"
+    if [ $? -eq 0 ];then
+      echo "PASS: $i" >> kernel.log
+    fi
+  else
+    echo "FAIL: $i" >> kernel.log
+  fi
+  rmmod "$i"
+done
+
+# kobject-example: 
+/*
+ * This module shows how to create a simple subdirectory in sysfs called
+ * /sys/kernel/kobject-example  In that directory, 3 files are created:
+ * "foo", "baz", and "bar".  If an integer is written to these files, it can be
+ * later read out of it.
+ */
+
+# kset-example:
+/*
+ * This module shows how to create a kset in sysfs called
+ * /sys/kernel/kset-example
+ * Then tree kobjects are created and assigned to this kset, "foo", "baz",
+ * and "bar".  In those kobjects, attributes of the same name are also
+ * created and if an integer is written to these files, it can be later
+ * read out of it.
+ */
+
+list2=("kobject-example" "kset-example")
+for i in "${list2[@]}"
+do
+  dmesg -c
+  modprobe "$i"
+  mod=${i//-/_}
+  basedir="/sys/kernel/${mod}"
+  echo "$basedir"
+  if [ -e ${basedir}/bar -a -e ${basedir}/baz -a -e ${basedir}/foo ];then
+    echo "PASS: $i" >> kernel.log
+  else
+    echo "FAIL: $i" >> kernel.log
+  fi
+  rmmod "$i"
+done
+
+# trace-events-sample
+# This modules test trace-events for a thread "foo_bar", return string "foo_bar" when everything goes well.
+list3="trace-events-sample"
+mod=${list3//-/_}
+modprobe "$list3"
+lsmod | grep "$mod"
+if [ $? -eq 0 ];then
+  if [ -e "/sys/kernel/debug/tracing/events/sample-trace" ];then
+    echo 1 > /sys/kernel/debug/tracing/events/sample-trace/enable
+    sleep 5
+    ret=`cat /sys/kernel/debug/tracing/trace | grep hello | head -n1 | cut -d':' -f2`
+    if [ "$ret" = " foo_bar" ];then
+      echo "PASS: $list3"  >> kernel.log
+    else
+      echo "FAIL: $list3" >> kernel.log
+    fi
+  else
+    echo "FAIL: $list3" >> kernel.log
+  fi
+else
+  echo "FAILED: $list3" >> kernel.log
+fi
+rmmod "$list3"
+
+# trace-printk
+# This modules just a simple test for trace-printk, return string "trace_printk_irq_work" when everything goes well.
+list4="trace-printk"
+modprobe "$list4"
+lsmod | grep "trace_printk"
+if [ $? -eq 0 ];then
+  ret=`cat /sys/kernel/debug/tracing/trace | grep trace_printk | head -n1 | cut -d':' -f2`
+  if [ "$ret" = " trace_printk_irq_work" ];then
+    echo "PASS: $list4" >> kernel.log
+  else
+    echo "FAIL: $list4" >> kernel.log
+  fi
+else
+  echo "FAIL: $list4" >> kernel.log
+fi
+rmmod "$list4"
+
+# kprobe_example
+# Here's a sample kernel module showing the use of kprobes to dump a
+# stack trace and selected registers when _do_fork() is called.
+list5="kprobe_example"
+dmesg -c
+modprobe "$list5"
+lsmod | grep "$list5"
+if [ $? -eq 0 ];then
+  dmesg | grep "_do_fork"
+  if [ $? -eq 0 ];then
+    echo "PASS: $list5" >> kernel.log
+  else
+    echo "FAIL: $list5" >> kernel.log
+  fi
+else
+  echo "FAIL: $list5" >> kernel.log
+fi
+rmmod "$list5"
+
+# kretprobe_example
+# Here's a sample kernel module showing the use of return probes to
+# report the return value and total time taken for probed function
+# to run.
+# When everything goes well, the result contain "_do_fork"
+list6="kretprobe_example"
+dmesg -c
+modprobe "$list6"
+lsmod | grep "$list6"
+if [ $? -eq 0 ];then
+  dmesg | grep "_do_fork returned"
+  if [ $? -eq 0 ];then
+    echo "PASS: $list6" >> kernel.log
+  else
+    echo "FAIL: $list6" >> kernel.log
+  fi
+else
+  echo "FAIL: $list6" >> kernel.log
+fi
+rmmod "$list6"
+
+echo "#####result#####"
+cat kernel.log
+rm kernel.log
