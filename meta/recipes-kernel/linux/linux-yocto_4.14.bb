@@ -45,3 +45,12 @@ KERNEL_FEATURES_append_qemuall=" cfg/virtio.scc"
 KERNEL_FEATURES_append_qemux86=" cfg/sound.scc cfg/paravirt_kvm.scc"
 KERNEL_FEATURES_append_qemux86-64=" cfg/sound.scc cfg/paravirt_kvm.scc"
 KERNEL_FEATURES_append = " ${@bb.utils.contains("TUNE_FEATURES", "mx32", " cfg/x32.scc", "" ,d)}"
+
+FILESEXTRAPATHS_prepend := "${THISDIR}/${PN}:"
+inherit ptest
+SRC_URI_append = " file://run-ptest \
+"
+do_install_ptest_append() {
+        install -D ${WORKDIR}/run-ptest ${D}${PTEST_PATH}/run-ptest
+}
+KERNEL_FEATURES_append = " ${@bb.utils.contains("DISTRO_FEATURES", "ptest", "features/kernel-sample/kernel-sample.scc", "", d)}"
