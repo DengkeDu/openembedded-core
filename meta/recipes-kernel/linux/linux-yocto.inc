@@ -72,3 +72,4 @@ addtask kernel_configcheck after do_configure before do_compile
 
 # enable kernel-sample for oeqa/runtime/cases's ksample.py test
 KERNEL_FEATURES_append_qemuall=" features/kernel-sample/kernel-sample.scc"
+KERNEL_FEATURES_append = " ${@bb.utils.contains('DISTRO_FEATURES', 'ptest', 'features/bpf/bpf.scc', '', d)}"
